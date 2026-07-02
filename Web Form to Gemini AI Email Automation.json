@@ -1,0 +1,214 @@
+{
+  "name": "Web Form to Gemini AI Email Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "construction-report",
+        "options": {
+          "binaryPropertyName": "photos"
+        }
+      },
+      "id": "0ef71ec8-0a15-4771-960f-010681342415",
+      "name": "Construction Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "6c8da5ed-ebb7-4c22-b4df-bb5fe63845dd"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gemini-1.5-flash"
+        },
+        "text": "Analyze this construction site photo in detail. Identify:\n1. Visible construction activities and work being performed\n2. Progress status and completion stage\n3. Materials visible on site\n4. Machinery and equipment present\n5. Workforce activity level\n6. Safety observations (PPE usage, barriers, signage)\n7. Possible next work stages based on current progress\n8. Any visible issues, delays, or risks\n\nProvide a professional, factual analysis.",
+        "inputType": "binary",
+        "binaryPropertyName": "photos",
+        "options": {
+          "maxOutputTokens": 1000
+        }
+      },
+      "id": "a44c5172-05df-4b93-9bba-be8f7be8a79d",
+      "name": "Analyze Site Photos",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gemini-1.5-flash"
+        },
+        "messages": {
+          "values": [
+            {}
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxOutputTokens": 1500,
+          "temperature": 0.3
+        }
+      },
+      "id": "17b130b8-419e-4500-b94f-60364871e228",
+      "name": "Generate Progress Report",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.response;\nlet reportData;\n\ntry {\n  // Try to parse as JSON directly\n  reportData = JSON.parse(response);\n} catch (e) {\n  // If it fails, try to extract JSON from markdown code blocks\n  const jsonMatch = response.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    reportData = JSON.parse(jsonMatch[1].trim());\n  } else {\n    // Try to find JSON object in the text\n    const objectMatch = response.match(/\\{[\\s\\S]*\\}/);\n    if (objectMatch) {\n      reportData = JSON.parse(objectMatch[0]);\n    } else {\n      throw new Error(\"Could not parse JSON from response\");\n    }\n  }\n}\n\nreturn [{ json: reportData }];"
+      },
+      "id": "ee2369b1-0919-429b-a2ad-84da1a299d8d",
+      "name": "Parse JSON Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "emailSubject",
+              "value": "=Construction Progress Report - {{ $json.site_name }} - {{ $json.report_date }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "emailBody",
+              "value": "=<!DOCTYPE html>\n<html>\n<head>\n<style>\nbody { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n.header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; }\n.content { padding: 20px; }\n.section { margin-bottom: 20px; }\n.section-title { font-weight: bold; color: #2c3e50; margin-bottom: 5px; }\n.highlight { background-color: #f8f9fa; padding: 10px; border-left: 4px solid #3498db; }\n.footer { background-color: #ecf0f1; padding: 15px; text-align: center; font-size: 12px; color: #7f8c8d; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<h1>Daily Construction Progress Report</h1>\n</div>\n<div class=\"content\">\n<div class=\"section\">\n<div class=\"section-title\">Site Information</div>\n<p><strong>Site Name:</strong> {{ $json.site_name }}</p>\n<p><strong>Report Date:</strong> {{ $json.report_date }}</p>\n</div>\n<div class=\"section highlight\">\n<div class=\"section-title\">Work Observed</div>\n<p>{{ $json.work_observed }}</p>\n</div>\n<div class=\"section\">\n<div class=\"section-title\">Progress Summary</div>\n<p>{{ $json.progress_summary }}</p>\n<p><strong>Estimated Completion:</strong> {{ $json.estimated_completion_percentage }}</p>\n</div>\n<div class=\"section\">\n<div class=\"section-title\">Materials Observed</div>\n<p>{{ $json.materials_observed }}</p>\n</div>\n<div class=\"section\">\n<div class=\"section-title\">Safety Observation</div>\n<p>{{ $json.safety_observation }}</p>\n</div>\n<div class=\"section\">\n<div class=\"section-title\">Issues or Risks</div>\n<p>{{ $json.issues_or_risks }}</p>\n</div>\n<div class=\"section\">\n<div class=\"section-title\">Next Recommended Step</div>\n<p>{{ $json.next_recommended_step }}</p>\n</div>\n<div class=\"section highlight\">\n<div class=\"section-title\">Client Summary</div>\n<p>{{ $json.client_summary }}</p>\n</div>\n</div>\n<div class=\"footer\">\n<p>This report was automatically generated by the Construction Progress Reporting System</p>\n</div>\n</body>\n</html>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "97d7f6f4-b403-4468-b53f-bff1c05e6fae",
+      "name": "Format Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "<__PLACEHOLDER_VALUE__recipient@company.com__>",
+        "subject": "={{ $json.emailSubject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {
+          "senderName": "Construction Progress System"
+        }
+      },
+      "id": "65db00e5-7488-4300-90b8-a3dcf1b44aac",
+      "name": "Send Report Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1488,
+        304
+      ],
+      "webhookId": "457f0631-c1b0-485b-9eda-be000210e0b7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "HukR2oQNihgRIogH",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Construction Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze Site Photos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Site Photos": {
+      "main": [
+        [
+          {
+            "node": "Generate Progress Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Progress Report": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Report": {
+      "main": [
+        [
+          {
+            "node": "Format Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email": {
+      "main": [
+        [
+          {
+            "node": "Send Report Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3e43aef2-3301-4770-b9b0-65cac8ed76ad",
+  "meta": {
+    "instanceId": "f789553496ce47a79749c154375fd4df928f867a5fca756efdd5d6a053f14866"
+  },
+  "nodeGroups": [],
+  "id": "i8D5DUXO2VhLAByT",
+  "tags": []
+}
